@@ -14,5 +14,5 @@ DB_NAME = os.getenv("DB_NAME", "omborxona.db")
 
 # Web ilova sozlamalari
 WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
-WEB_PORT = int(os.getenv("WEB_PORT", "8080"))
+WEB_PORT = int(os.getenv("PORT", os.getenv("WEB_PORT", "8080")))
 WEB_APP_URL = os.getenv("WEB_APP_URL", f"http://localhost:{WEB_PORT}")

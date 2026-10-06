@@ -6,7 +6,10 @@ from datetime import datetime
 from config import DB_NAME
 import database as db
 
-EXCEL_PATH = r"c:\Users\Predator\Downloads\Telegram Desktop\Дорилар рўйхати 2026 й октябр.xlsx"
+EXCEL_PATH = os.path.join(os.path.dirname(__file__), "initial_medicines.xlsx")
+if not os.path.exists(EXCEL_PATH):
+    EXCEL_PATH = r"c:\Users\Predator\Downloads\Telegram Desktop\Дорилар рўйхати 2026 й октябр.xlsx"
+
 
 def determine_unit(name: str) -> str:
     n = name.lower()

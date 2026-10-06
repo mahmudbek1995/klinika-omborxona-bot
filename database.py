@@ -76,7 +76,18 @@ async def init_db():
                     web_password = CASE WHEN users.web_password = '' THEN 'admin123' ELSE users.web_password END
             """, (admin_id,))
 
+        # Agar dorilar bazasi bo'sh bo'lsa va initial_medicines.xlsx mavjud bo'lsa, avtomatik to'ldirish
+        async with db.execute("SELECT COUNT(*) FROM medicines") as cursor:
+            count = (await cursor.fetchone())[0]
+            if count == 0:
+                try:
+                    import import_excel
+                    await import_excel.import_medicines()
+                except Exception as e:
+                    pass
+
         await db.commit()
+
 
 async def register_or_get_user(user_id: int, full_name: str, username: str):
     """

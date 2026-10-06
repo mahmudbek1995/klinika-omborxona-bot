@@ -18,7 +18,9 @@ venv/
 env/
 
 # Excel hisobot fayllari
-*.xlsx
+ombor_hisoboti*.xlsx
+Klinika_*.xlsx
+
 
 # Muhit va IDE sozlamalari
 .idea/
