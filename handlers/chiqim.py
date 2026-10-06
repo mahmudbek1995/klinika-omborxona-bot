@@ -19,8 +19,8 @@ async def start_chiqim(message: Message, state: FSMContext):
     await state.clear()
     await state.set_state(ChiqimStates.search_or_select)
     await message.answer(
-        "📤 <b>Dori chiqim qilish:</b>\n\n"
-        "Chiqim qilinadigan dori nomini yozing (masalan: <i>Димедрол, Новакаин, Шприц</i>):",
+        "📤 <b>Chiqim qilish:</b>\n\n"
+        "Chiqim qilinadigan dori, operatsion rasxodnik yoki xo'jalik moli nomini yozing (masalan: <i>Димедрол, Шприц, Спирт, Перчатки</i>):",
         reply_markup=get_cancel_menu(),
         parse_mode="HTML"
     )

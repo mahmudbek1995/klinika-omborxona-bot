@@ -452,7 +452,7 @@
 
         <!-- Tablar navigatsiyasi -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('medicines')">📦 Barcha dorilar</button>
+            <button class="tab-btn active" onclick="switchTab('medicines')">📦 Ombor ro'yxati</button>
             <button class="tab-btn" onclick="switchTab('low-stock')">⚠️ Kam qolganlar</button>
             <button class="tab-btn" onclick="switchTab('departments')">🏢 Bo'limlar sarfi</button>
             <button class="tab-btn" onclick="switchTab('kirim')">📥 Kirim qilish</button>
@@ -460,18 +460,27 @@
             <button class="tab-btn" onclick="switchTab('history')">📜 Harakatlar tarixi</button>
         </div>
 
-        <!-- 1-TAB: BARCHA DORILAR -->
+        <!-- 1-TAB: BARCHA TOVARLAR -->
         <div id="tab-medicines" class="tab-content active">
+            <!-- Kategoriya bo'yicha filtrlar -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                <button class="btn cat-filter-btn" id="cat-btn-all" style="background: var(--primary); color: white;" onclick="filterByCategory('all')">🌐 Hammasi</button>
+                <button class="btn cat-filter-btn btn-secondary" id="cat-btn-dori" onclick="filterByCategory('dori')">💊 Dori-darmonlar</button>
+                <button class="btn cat-filter-btn btn-secondary" id="cat-btn-operatsion" onclick="filterByCategory('operatsion')">🩺 Operatsion rasxod</button>
+                <button class="btn cat-filter-btn btn-secondary" id="cat-btn-xojalik" onclick="filterByCategory('xojalik')">🧹 Xo'jalik xarajatlari</button>
+            </div>
+
             <div class="search-box">
-                <input type="text" id="search-input" class="search-input" placeholder="🔍 Dori nomini qidirish (masalan: novokain, analgin)..." oninput="filterMedicines()">
-                <button class="btn btn-primary" onclick="switchTab('kirim')">+ Yangi dori</button>
+                <input type="text" id="search-input" class="search-input" placeholder="🔍 Qidirish (nomi, toifasi)..." oninput="filterMedicines()">
+                <button class="btn btn-primary" onclick="switchTab('kirim')">+ Yangi tovar</button>
             </div>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
                             <th>№</th>
-                            <th>Dori nomi</th>
+                            <th>Nomi</th>
+                            <th>Toifasi</th>
                             <th>Mavjud qoldiq</th>
                             <th>Min. me'yor</th>
                             <th>Joylashuv</th>
@@ -480,7 +489,7 @@
                         </tr>
                     </thead>
                     <tbody id="medicines-table-body">
-                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Yuklanmoqda...</td></tr>
+                        <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Yuklanmoqda...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -535,12 +544,22 @@
         <!-- 4-TAB: KIRIM QILISH FORMASI -->
         <div id="tab-kirim" class="tab-content">
             <div class="card">
-                <h3 style="font-size: 16px; margin-bottom: 16px; color: var(--primary);">📥 Omborga dori qabul qilish (Kirim)</h3>
+                <h3 style="font-size: 16px; margin-bottom: 16px; color: var(--primary);">📥 Omborga qabul qilish (Kirim)</h3>
                 <form id="form-kirim" onsubmit="handleKirimSubmit(event)">
-                    <div class="form-group">
-                        <label>Dori nomi *</label>
-                        <input type="text" id="k-name" class="form-control" placeholder="Masalan: Paratsetamol 500mg" required list="medicine-datalist">
-                        <datalist id="medicine-datalist"></datalist>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>Nomi (dori, tovar, rasxodnik) *</label>
+                            <input type="text" id="k-name" class="form-control" placeholder="Masalan: Paratsetamol, Spirt, Qo'lqop..." required list="medicine-datalist">
+                            <datalist id="medicine-datalist"></datalist>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Toifasi (Kategoriya)</label>
+                            <select id="k-category" class="form-control">
+                                <option value="dori">💊 Dori-darmon</option>
+                                <option value="operatsion">🩺 Operatsion rasxod</option>
+                                <option value="xojalik">🧹 Xo'jalik xarajatlari</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -754,13 +773,35 @@
             }
         }
 
+        let currentCategory = 'all';
+
+        function filterByCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+                btn.style.background = '#e2e8f0';
+                btn.style.color = 'var(--text-main)';
+            });
+            const activeBtn = document.getElementById(`cat-btn-${cat}`);
+            if (activeBtn) {
+                activeBtn.style.background = 'var(--primary)';
+                activeBtn.style.color = '#ffffff';
+            }
+            filterMedicines();
+        }
+
         function renderMedicinesTable(medicines) {
             const tbody = document.getElementById('medicines-table-body');
             tbody.innerHTML = '';
             if (!medicines.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Dorilar topilmadi.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Mahsulotlar topilmadi.</td></tr>';
                 return;
             }
+
+            const catMap = {
+                'dori': '<span class="badge" style="background: #e0f2fe; color: #0369a1;">💊 Dori</span>',
+                'operatsion': '<span class="badge" style="background: #fef3c7; color: #b45309;">🩺 Operatsion</span>',
+                'xojalik': '<span class="badge" style="background: #f3e8ff; color: #7e22ce;">🧹 Xo\'jalik</span>'
+            };
 
             medicines.forEach((m, idx) => {
                 const isZero = m.quantity <= 0;
@@ -769,10 +810,13 @@
                 if (isZero) badge = '<span class="badge badge-danger">Tugagan (0)</span>';
                 else if (isLow) badge = '<span class="badge badge-warning">Kam qolgan</span>';
 
+                const catBadge = catMap[m.category] || '<span class="badge">Boshqa</span>';
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${idx + 1}</td>
                     <td><strong>${escapeHtml(m.name)}</strong></td>
+                    <td>${catBadge}</td>
                     <td style="font-weight: 700; color: ${isLow ? 'var(--danger)' : 'var(--text-main)'};">
                         ${m.quantity} ${m.unit}
                     </td>
@@ -794,7 +838,7 @@
             tbody.innerHTML = '';
 
             if (!lowItems.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--success); font-weight: 600;">🎉 Barcha dorilar yetarli miqdorda!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--success); font-weight: 600;">🎉 Barcha mahsulotlar yetarli miqdorda!</td></tr>';
                 return;
             }
 
@@ -864,7 +908,7 @@
             const datalist = document.getElementById('medicine-datalist');
             datalist.innerHTML = '';
             const selectChiqim = document.getElementById('c-med-id');
-            selectChiqim.innerHTML = '<option value="">-- Dorini tanlang --</option>';
+            selectChiqim.innerHTML = '<option value="">-- Mahsulotni tanlang --</option>';
 
             medicines.forEach(m => {
                 const opt1 = document.createElement('option');
@@ -892,17 +936,20 @@
 
         function filterMedicines() {
             const q = document.getElementById('search-input').value.toLowerCase().trim();
-            if (!q) {
-                renderMedicinesTable(allMedicines);
-                return;
+            let filtered = allMedicines;
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(m => (m.category || 'dori') === currentCategory);
             }
-            const filtered = allMedicines.filter(m => m.name.toLowerCase().includes(q));
+            if (q) {
+                filtered = filtered.filter(m => m.name.toLowerCase().includes(q) || (m.category || '').toLowerCase().includes(q));
+            }
             renderMedicinesTable(filtered);
         }
 
         async function handleKirimSubmit(e) {
             e.preventDefault();
             const name = document.getElementById('k-name').value.trim();
+            const category = document.getElementById('k-category')?.value || 'dori';
             const unit = document.getElementById('k-unit').value;
             const qty = parseFloat(document.getElementById('k-qty').value);
             const minQty = parseFloat(document.getElementById('k-min-qty').value) || 10;
@@ -917,6 +964,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         name: name,
+                        category: category,
                         unit: unit,
                         quantity: qty,
                         min_quantity: minQty,

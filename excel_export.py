@@ -39,7 +39,7 @@ async def generate_stock_excel(output_filename: str = "ombor_hisoboti.xlsx") -> 
     ws1.row_dimensions[1].height = 30
 
     headers1 = [
-        "№", "Dori nomi", "O'lchov birligi", "Mavjud qoldiq", 
+        "№", "Mahsulot nomi", "Toifasi", "O'lchov birligi", "Mavjud qoldiq", 
         "Min. me'yor", "Joylashuvi", "Yaroqlilik muddati", "Holati"
     ]
     ws1.append([])
@@ -54,10 +54,11 @@ async def generate_stock_excel(output_filename: str = "ombor_hisoboti.xlsx") -> 
 
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM medicines ORDER BY name ASC") as cursor:
+        async with db.execute("SELECT * FROM medicines ORDER BY category ASC, name ASC") as cursor:
             medicines = await cursor.fetchall()
 
     row_num = 4
+    cat_names = {"dori": "Dori-darmon", "operatsion": "Operatsion rasxod", "xojalik": "Xo'jalik xarajati"}
     for idx, med in enumerate(medicines, 1):
         is_low = med["quantity"] <= med["min_quantity"]
         status_text = "⚠️ Kam qolgan" if is_low else "Yetarli"
@@ -65,6 +66,7 @@ async def generate_stock_excel(output_filename: str = "ombor_hisoboti.xlsx") -> 
         ws1.append([
             idx,
             med["name"],
+            cat_names.get(med["category"], med["category"]),
             med["unit"],
             med["quantity"],
             med["min_quantity"],
@@ -73,8 +75,8 @@ async def generate_stock_excel(output_filename: str = "ombor_hisoboti.xlsx") -> 
             status_text
         ])
 
-        status_cell = ws1.cell(row=row_num, column=8)
-        qty_cell = ws1.cell(row=row_num, column=4)
+        status_cell = ws1.cell(row=row_num, column=9)
+        qty_cell = ws1.cell(row=row_num, column=5)
         
         if is_low:
             status_cell.fill = warning_fill
@@ -84,9 +86,9 @@ async def generate_stock_excel(output_filename: str = "ombor_hisoboti.xlsx") -> 
             status_cell.fill = normal_fill
             status_cell.font = normal_font
 
-        for c in range(1, 9):
+        for c in range(1, 10):
             ws1.cell(row=row_num, column=c).border = thin_border
-            if c in (1, 3, 4, 5, 7, 8):
+            if c in (1, 3, 4, 5, 6, 8, 9):
                 ws1.cell(row=row_num, column=c).alignment = Alignment(horizontal="center")
 
         row_num += 1

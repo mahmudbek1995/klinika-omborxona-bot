@@ -1,12 +1,13 @@
 from aiogram.fsm.state import State, StatesGroup
 
 class KirimStates(StatesGroup):
-    search_or_new = State()      # Dori nomini qidirish yoki yangi dori kiritish
-    choose_existing = State()    # Topilgan ro'yxatdan mavjud dorini tanlash
-    unit = State()               # Yangi dori uchun o'lchov birligi
+    search_or_new = State()      # Tovar/dori nomini qidirish yoki yangi kiritish
+    choose_existing = State()    # Topilgan ro'yxatdan mavjud tovar/dorini tanlash
+    category = State()           # Yangi mahsulot uchun kategoriya (dori, operatsion, xojalik)
+    unit = State()               # Yangi tovar uchun o'lchov birligi
     quantity = State()           # Kirim miqdori
-    min_quantity = State()       # Yangi dori uchun minimal zaxira normasi
-    location = State()           # Joylashuvi (polka/shkaf)
+    min_quantity = State()       # Yangi tovar uchun minimal zaxira normasi
+    location = State()           # Joylashuvi (polka/shkaf/bo'lim)
     expiry = State()             # Yaroqlilik muddati
     comment = State()            # Yetkazib beruvchi / izoh
 

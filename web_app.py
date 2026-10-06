@@ -16,6 +16,7 @@ class LoginRequest(BaseModel):
 
 class KirimRequest(BaseModel):
     name: str
+    category: Optional[str] = "dori"
     unit: str = "dona"
     quantity: float
     min_quantity: float = 10.0
@@ -53,8 +54,8 @@ async def api_login(req: LoginRequest):
     return {"success": False, "message": msg}
 
 @app.get("/api/medicines")
-async def api_get_medicines():
-    meds = await db.get_all_medicines()
+async def api_get_medicines(category: Optional[str] = None):
+    meds = await db.get_all_medicines(category=category)
     return [dict(m) for m in meds]
 
 @app.get("/api/stats")
@@ -89,7 +90,7 @@ async def api_kirim(req: KirimRequest):
             # FAQAT GLAVNIY ADMINGA BILDIRISHNOMA
             await notify_admin(
                 f"🌐 <b>WEB ORQALI OPERATSIYA: KIRIM</b>\n\n"
-                f"💊 <b>Dori:</b> {existing['name']}\n"
+                f"🏷 <b>Nomi:</b> {existing['name']}\n"
                 f"📥 <b>Kiritildi:</b> +{req.quantity:g} {existing['unit']}\n"
                 f"📦 <b>Yangi qoldiq:</b> {new_qty:g} {existing['unit']}\n"
                 f"👤 <b>Kim bajardi (Web):</b> {req.user_name}\n"
@@ -98,6 +99,9 @@ async def api_kirim(req: KirimRequest):
             )
         return {"success": success, "new_quantity": new_qty, "is_new": False}
     else:
+        cat_names = {"dori": "💊 Dori-darmon", "operatsion": "🩺 Operatsion rasxod", "xojalik": "🧹 Xo'jalik moli"}
+        cat_str = cat_names.get(req.category, req.category)
+
         med_id = await db.add_new_medicine(
             name=req.name,
             unit=req.unit,
@@ -105,13 +109,15 @@ async def api_kirim(req: KirimRequest):
             min_qty=req.min_quantity,
             location=req.location or "",
             expiry_date="",
+            category=req.category or "dori",
             user_id=0,
             user_name=req.user_name or "Web xodim"
         )
         # FAQAT GLAVNIY ADMINGA BILDIRISHNOMA
         await notify_admin(
-            f"🆕 <b>WEB ORQALI OPERATSIYA: YANGI DORI QO'SHILDI!</b>\n\n"
-            f"💊 <b>Dori nomi:</b> {req.name}\n"
+            f"🆕 <b>WEB ORQALI OPERATSIYA: YANGI MAHSULOT QO'SHILDI!</b>\n\n"
+            f"🏷 <b>Nomi:</b> {req.name}\n"
+            f"📂 <b>Toifasi:</b> {cat_str}\n"
             f"📦 <b>Boshlang'ich qoldiq:</b> {req.quantity:g} {req.unit}\n"
             f"⚠️ <b>Min. norma:</b> {req.min_quantity:g} {req.unit}\n"
             f"📍 <b>Joylashuv:</b> {req.location or 'Ko‘rsatilmagan'}\n"

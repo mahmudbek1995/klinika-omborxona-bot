@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from states import KirimStates
-from keyboards import get_main_menu, get_cancel_menu, get_units_keyboard
+from keyboards import get_main_menu, get_cancel_menu, get_units_keyboard, get_category_selection_keyboard
 import database as db
 
 from notifier import notify_admin
@@ -19,9 +19,9 @@ async def start_kirim(message: Message, state: FSMContext):
     await state.clear()
     await state.set_state(KirimStates.search_or_new)
     await message.answer(
-        "📥 <b>Dori kirim qilish:</b>\n\n"
-        "Iltimos, dori nomini kiriting (masalan: <i>Analgin, Paratsetamol, Seftriakson</i>):\n\n"
-        "<i>(Agar dori bazada bo'lsa qoldiq oshiriladi, bo'lmasa yangi dori sifatida ro'yxatga olinadi)</i>",
+        "📥 <b>Omborga kirim qilish:</b>\n\n"
+        "Mahsulot, dori yoki sarf materiali nomini kiriting (masalan: <i>Analgin, Spirt, Shprits, Qo'lqop</i>):\n\n"
+        "<i>(Agar tovar bazada mavjud bo'lsa qoldiq oshiriladi, bo'lmasa yangi sifatida ro'yxatga olinadi)</i>",
         reply_markup=get_cancel_menu(),
         parse_mode="HTML"
     )
@@ -82,18 +82,32 @@ async def process_medicine_name(message: Message, state: FSMContext):
             parse_mode="HTML"
         )
     else:
-        # Yangi dori kiritish
+        # Yangi tovar kiritish
         await state.update_data(
             medicine_name=med_name,
             is_existing=False
         )
-        await state.set_state(KirimStates.unit)
+        await state.set_state(KirimStates.category)
         await message.answer(
-            f"🆕 <b>Yangi dori qo'shilmoqda:</b> {med_name}\n\n"
-            f"Ushbu dorining o'lchov birligini tanlang yoki qo'lda yozing:",
-            reply_markup=get_units_keyboard(),
+            f"🆕 <b>Yangi mahsulot qo'shilmoqda:</b> {med_name}\n\n"
+            f"Ushbu mahsulot qaysi toifaga (bo'limga) tegishli?",
+            reply_markup=get_category_selection_keyboard(prefix="kirim_cat"),
             parse_mode="HTML"
         )
+
+@router.callback_query(KirimStates.category, F.data.startswith("kirim_cat:"))
+async def process_kirim_category_cb(callback: CallbackQuery, state: FSMContext):
+    cat = callback.data.split(":")[1]
+    cat_names = {"dori": "💊 Dori-darmon", "operatsion": "🩺 Operatsion rasxod", "xojalik": "🧹 Xo'jalik moli"}
+    await state.update_data(category=cat)
+    await state.set_state(KirimStates.unit)
+    await callback.message.answer(
+        f"Toifa: <b>{cat_names.get(cat, cat)}</b>\n\n"
+        f"O'lchov birligini tanlang yoki qo'lda yozing:",
+        reply_markup=get_units_keyboard(),
+        parse_mode="HTML"
+    )
+    await callback.answer()
 
 @router.callback_query(KirimStates.unit, F.data.startswith("unit:"))
 async def process_unit_callback(callback: CallbackQuery, state: FSMContext):
@@ -299,7 +313,8 @@ async def process_kirim_finish(message: Message, state: FSMContext):
                 reply_markup=get_main_menu()
             )
     else:
-        # Yangi dori yaratish
+        # Yangi tovar yaratish
+        category = data.get("category", "dori")
         med_id = await db.add_new_medicine(
             name=data["medicine_name"],
             unit=data["unit"],
@@ -307,13 +322,18 @@ async def process_kirim_finish(message: Message, state: FSMContext):
             min_qty=data.get("min_quantity", 10),
             location=data.get("location", ""),
             expiry_date=data.get("expiry", ""),
+            category=category,
             user_id=user_id,
             user_name=user_name
         )
         await state.clear()
+        cat_names = {"dori": "💊 Dori-darmon", "operatsion": "🩺 Operatsion rasxod", "xojalik": "🧹 Xo'jalik moli"}
+        cat_str = cat_names.get(category, category)
+
         await message.answer(
-            f"🎉 <b>Yangi dori muvaffaqiyatli ro'yxatdan o'tkazildi!</b>\n\n"
-            f"💊 Dori nomi: <b>{data['medicine_name']}</b>\n"
+            f"🎉 <b>Yangi mahsulot muvaffaqiyatli ro'yxatdan o'tkazildi!</b>\n\n"
+            f"🏷 Mahsulot nomi: <b>{data['medicine_name']}</b>\n"
+            f"📂 Bo'lim / toifa: <b>{cat_str}</b>\n"
             f"📦 Boshlang'ich qoldiq: <b>{data['quantity']:g} {data['unit']}</b>\n"
             f"⚠️ Minimal me'yor: <b>{data.get('min_quantity', 10):g} {data['unit']}</b>\n"
             f"📍 Joylashuv: {data.get('location') or 'Ko‘rsatilmagan'}\n"
@@ -325,8 +345,9 @@ async def process_kirim_finish(message: Message, state: FSMContext):
 
         # FAQAT GLAVNIY ADMINGA SHAXSIY BILDIRISHNOMA
         await notify_admin(
-            f"🆕 <b>OMBORDAGI OPERATSIYA: YANGI DORI QO'SHILDI!</b>\n\n"
-            f"💊 <b>Dori nomi:</b> {data['medicine_name']}\n"
+            f"🆕 <b>OMBORDAGI OPERATSIYA: YANGI MAHSULOT QO'SHILDI!</b>\n\n"
+            f"🏷 <b>Nomi:</b> {data['medicine_name']}\n"
+            f"📂 <b>Toifasi:</b> {cat_str}\n"
             f"📦 <b>Boshlang'ich qoldiq:</b> {data['quantity']:g} {data['unit']}\n"
             f"⚠️ <b>Min. norma:</b> {data.get('min_quantity', 10):g} {data['unit']}\n"
             f"📍 <b>Joylashuv:</b> {data.get('location') or 'Ko‘rsatilmagan'}\n"

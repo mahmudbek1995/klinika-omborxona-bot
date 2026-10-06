@@ -6,11 +6,12 @@ from config import DB_NAME, ADMIN_IDS
 async def init_db():
     """Ma'lumotlar bazasini ishga tushirish va jadvallarni yaratish"""
     async with aiosqlite.connect(DB_NAME) as db:
-        # Dorilar jadvali
+        # Dorilar va mollar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS medicines (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                category TEXT NOT NULL DEFAULT 'dori', -- 'dori', 'operatsion', 'xojalik'
                 unit TEXT NOT NULL DEFAULT 'dona',
                 quantity REAL NOT NULL DEFAULT 0,
                 min_quantity REAL NOT NULL DEFAULT 10,
@@ -20,6 +21,11 @@ async def init_db():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        try:
+            await db.execute("ALTER TABLE medicines ADD COLUMN category TEXT DEFAULT 'dori'")
+        except Exception:
+            pass
 
         # Kirim va chiqim harakatlari (tarix) jadvali
         await db.execute("""
@@ -77,7 +83,7 @@ async def init_db():
             """, (admin_id,))
 
         # Agar dorilar bazasi bo'sh bo'lsa va initial_medicines.xlsx mavjud bo'lsa, avtomatik to'ldirish
-        async with db.execute("SELECT COUNT(*) FROM medicines") as cursor:
+        async with db.execute("SELECT COUNT(*) FROM medicines WHERE category = 'dori'") as cursor:
             count = (await cursor.fetchone())[0]
             
         if count == 0:
@@ -125,8 +131,8 @@ async def init_db():
                         
                         cursor_med = await db.execute(
                             """
-                            INSERT OR IGNORE INTO medicines (name, unit, quantity, min_quantity, location, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, 'Asosiy omborxona', ?, ?)
+                            INSERT OR IGNORE INTO medicines (name, category, unit, quantity, min_quantity, location, created_at, updated_at)
+                            VALUES (?, 'dori', ?, ?, ?, 'Asosiy omborxona', ?, ?)
                             """,
                             (raw_name, unit, qty, min_qty, now, now)
                         )
@@ -146,6 +152,52 @@ async def init_db():
                             )
                 except Exception as ex:
                     print(f"Excel import xatosi: {ex}")
+
+        # Operatsion xarajatlar ro'yxatini yuklash (initial_operatsion.xlsx mavjud bo'lsa)
+        async with db.execute("SELECT COUNT(*) FROM medicines WHERE category = 'operatsion'") as cursor:
+            op_count = (await cursor.fetchone())[0]
+
+        if op_count == 0:
+            import os
+            op_path = os.path.join(os.path.dirname(__file__), "initial_operatsion.xlsx")
+            if os.path.exists(op_path):
+                import openpyxl
+                try:
+                    wb_op = openpyxl.load_workbook(op_path)
+                    ws_op = wb_op.active
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    def _op_unit(n_str: str) -> str:
+                        n = n_str.lower()
+                        if "перчатк" in n: return "juft"
+                        elif "шприц" in n or "бахила" in n or "маска" in n or "шапочка" in n or "система" in n or "лезви" in n or "зонд" in n or "катетер" in n or "клипса" in n: return "dona"
+                        elif "простынь" in n or "халат" in n or "чехол" in n: return "dona"
+                        elif "спирт" in n or "хлорид" in n or "раствор" in n or "перекись" in n or "бетадин" in n or "нафтизин" in n: return "flakon"
+                        elif "адреналин" in n or "лидокаин" in n or "новокаин" in n or "сюперкаин" in n or "цефтриаксон" in n: return "ampula"
+                        elif "викрил" in n or "капрон" in n: return "dona"
+                        elif "мазь" in n: return "tubik"
+                        elif "бинт" in n or "марля" in n: return "dona"
+                        return "dona"
+
+                    seen_op = set()
+                    for r in range(9, 43):
+                        for col in (2, 7):
+                            val = ws_op.cell(row=r, column=col).value
+                            if val and str(val).strip():
+                                name_clean = " ".join(str(val).split()).strip()
+                                if name_clean not in seen_op:
+                                    seen_op.add(name_clean)
+                                    u = _op_unit(name_clean)
+                                    await db.execute(
+                                        """
+                                        INSERT INTO medicines (name, category, unit, quantity, min_quantity, location, created_at, updated_at)
+                                        VALUES (?, 'operatsion', ?, 0, 5, 'Operatsion bo''lim', ?, ?)
+                                        ON CONFLICT(name) DO UPDATE SET category = 'operatsion'
+                                        """,
+                                        (name_clean, u, now, now)
+                                    )
+                except Exception as ex:
+                    print(f"Operatsion import xatosi: {ex}")
 
         await db.commit()
 
@@ -253,13 +305,17 @@ async def verify_web_login(login_input: str, password_input: str):
 
         return True, dict(user), "Muvaffaqiyatli!"
 
-async def get_all_medicines():
-    """Barcha dorilar ro'yxatini olish (nomi bo'yicha alifbo tartibida)"""
+async def get_all_medicines(category: str = None):
+    """Barcha tovarlar ro'yxatini olish (category bo'yicha ixtiyoriy filtrlash)"""
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM medicines ORDER BY name ASC"
-        ) as cursor:
+        if category:
+            query = "SELECT * FROM medicines WHERE category = ? ORDER BY name ASC"
+            params = (category,)
+        else:
+            query = "SELECT * FROM medicines ORDER BY name ASC"
+            params = ()
+        async with db.execute(query, params) as cursor:
             return await cursor.fetchall()
 
 async def get_medicine_by_id(med_id: int):
@@ -280,35 +336,43 @@ async def get_medicine_by_name(name: str):
         ) as cursor:
             return await cursor.fetchone()
 
-async def search_medicines(query: str):
-    """Nom bo'yicha dorilarni qidirish"""
+async def search_medicines(query: str, category: str = None):
+    """Nom bo'yicha tovarlarni qidirish"""
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row
         pattern = f"%{query.strip()}%"
-        async with db.execute(
-            "SELECT * FROM medicines WHERE name LIKE ? ORDER BY name ASC LIMIT 25", (pattern,)
-        ) as cursor:
+        if category:
+            sql = "SELECT * FROM medicines WHERE category = ? AND name LIKE ? ORDER BY name ASC LIMIT 25"
+            params = (category, pattern)
+        else:
+            sql = "SELECT * FROM medicines WHERE name LIKE ? ORDER BY name ASC LIMIT 25"
+            params = (pattern,)
+        async with db.execute(sql, params) as cursor:
             return await cursor.fetchall()
 
-async def get_low_stock_medicines():
-    """Zaxirasi minimal miqdordan kam yoki teng qolgan dorilarni olish"""
+async def get_low_stock_medicines(category: str = None):
+    """Zaxirasi minimal miqdordan kam yoki teng qolgan tovarlarni olish"""
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM medicines WHERE quantity <= min_quantity ORDER BY quantity ASC"
-        ) as cursor:
+        if category:
+            sql = "SELECT * FROM medicines WHERE category = ? AND quantity <= min_quantity ORDER BY quantity ASC"
+            params = (category,)
+        else:
+            sql = "SELECT * FROM medicines WHERE quantity <= min_quantity ORDER BY quantity ASC"
+            params = ()
+        async with db.execute(sql, params) as cursor:
             return await cursor.fetchall()
 
-async def add_new_medicine(name: str, unit: str, initial_qty: float, min_qty: float, location: str = "", expiry_date: str = "", user_id: int = 0, user_name: str = ""):
-    """Yangi dori qo'shish va birinchi kirimni qayd qilish"""
+async def add_new_medicine(name: str, unit: str, initial_qty: float, min_qty: float, location: str = "", expiry_date: str = "", category: str = "dori", user_id: int = 0, user_name: str = ""):
+    """Yangi tovar (dori, operatsion yoki xo'jalik) qo'shish va birinchi kirimni qayd qilish"""
     async with aiosqlite.connect(DB_NAME) as db:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor = await db.execute(
             """
-            INSERT INTO medicines (name, unit, quantity, min_quantity, location, expiry_date, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO medicines (name, category, unit, quantity, min_quantity, location, expiry_date, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (name.strip(), unit.strip(), initial_qty, min_qty, location.strip(), expiry_date.strip(), now, now)
+            (name.strip(), category.strip(), unit.strip(), initial_qty, min_qty, location.strip(), expiry_date.strip(), now, now)
         )
         med_id = cursor.lastrowid
 
@@ -319,7 +383,7 @@ async def add_new_medicine(name: str, unit: str, initial_qty: float, min_qty: fl
                 INSERT INTO transactions (medicine_id, type, quantity, department, comment, user_id, user_name, created_at)
                 VALUES (?, 'kirim', ?, '', ?, ?, ?, ?)
                 """,
-                (med_id, initial_qty, "Yangi dori ochildi (boshlang'ich qoldiq)", user_id, user_name, now)
+                (med_id, initial_qty, f"Yangi mahsulot ochildi ({category})", user_id, user_name, now)
             )
 
         await db.commit()
@@ -467,11 +531,17 @@ async def get_statistics():
             row_users = await cursor.fetchone()
             total_users = row_users[0] or 0
 
+        # Kategoriya bo'yicha taqsimot
+        async with db.execute("SELECT category, COUNT(*), SUM(quantity) FROM medicines GROUP BY category") as cursor:
+            cat_rows = await cursor.fetchall()
+            cat_stats = {r[0]: {"count": r[1], "qty": r[2] or 0} for r in cat_rows}
+
         return {
             "total_items": total_items,
             "total_qty": total_qty,
             "low_count": low_count,
             "today_kirim": today_kirim,
             "today_chiqim": today_chiqim,
-            "total_users": total_users
+            "total_users": total_users,
+            "categories": cat_stats
         }

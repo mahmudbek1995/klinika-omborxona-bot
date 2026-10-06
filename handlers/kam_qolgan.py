@@ -4,14 +4,14 @@ import database as db
 
 router = Router()
 
-@router.message(F.text == "⚠️ Kam qolgan dorilar")
+@router.message(F.text.in_(["⚠️ Kam qolgan dorilar", "⚠️ Kam qolgan mollar"]))
 async def show_low_stock(message: Message):
     low_medicines = await db.get_low_stock_medicines()
 
     if not low_medicines:
         await message.answer(
-            "🎉 <b>Ajoyib! Omborda barcha dorilar yetarli miqdorda!</b>\n\n"
-            "Minimal me'yordan kam qolgan dorilar mavjud emas.",
+            "🎉 <b>Ajoyib! Omborda barcha tovar va dorilar yetarli miqdorda!</b>\n\n"
+            "Minimal me'yordan kam qolgan tovarlar mavjud emas.",
             parse_mode="HTML"
         )
         return

@@ -30,12 +30,16 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             KeyboardButton(text="📤 Chiqim qilish")
         ],
         [
-            KeyboardButton(text="📦 Barcha dorilar"),
-            KeyboardButton(text="⚠️ Kam qolgan dorilar")
+            KeyboardButton(text="💊 Dori-darmonlar"),
+            KeyboardButton(text="🩺 Operatsion rasxodnik")
+        ],
+        [
+            KeyboardButton(text="🧹 Xo'jalik xarajatlari"),
+            KeyboardButton(text="⚠️ Kam qolgan mollar")
         ],
         [
             KeyboardButton(text="🏢 Bo'limlar hisoboti"),
-            KeyboardButton(text="🔍 Dori qidirish")
+            KeyboardButton(text="🔍 Qidirish")
         ],
         [
             web_button,
@@ -51,6 +55,19 @@ def get_main_menu() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         persistent=True
     )
+
+def get_category_selection_keyboard(prefix: str = "cat") -> InlineKeyboardMarkup:
+    """Kategoriya tanlash tugmalari"""
+    keyboard = [
+        [
+            InlineKeyboardButton(text="💊 Dori-darmon", callback_data=f"{prefix}:dori"),
+            InlineKeyboardButton(text="🩺 Operatsion rasxod", callback_data=f"{prefix}:operatsion")
+        ],
+        [
+            InlineKeyboardButton(text="🧹 Xo'jalik moli", callback_data=f"{prefix}:xojalik")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_web_inline_keyboard() -> InlineKeyboardMarkup | None:
     """Web-ilovani ochish uchun inline tugma (faqat https bo'lganda)"""

@@ -34,26 +34,61 @@ async def build_medicine_card_text(med) -> str:
     )
     return text
 
-@router.message(F.text == "📦 Barcha dorilar")
+@router.message(F.text.in_(["💊 Dori-darmonlar", "📦 Barcha dorilar"]))
 async def show_all_medicines(message: Message):
     if not await db.is_user_approved(message.from_user.id):
         await message.answer("⛔️ Sizga ruxsat berilmagan!")
         return
 
-    medicines = await db.get_all_medicines()
+    medicines = await db.get_all_medicines(category="dori")
     if not medicines:
         await message.answer(
-            "📦 Omborda hozircha hech qanday dori yo'q.\n"
+            "💊 Omborda hozircha hech qanday dori yo'q.\n"
             "Yangi dori qo'shish uchun <b>📥 Kirim qilish</b> tugmasini bosing.",
             reply_markup=get_main_menu(),
             parse_mode="HTML"
         )
         return
 
+    await render_medicines_page(message, medicines, page=1, category="dori", title="Dori-darmonlar")
 
-    await render_medicines_page(message, medicines, page=1)
+@router.message(F.text == "🩺 Operatsion rasxodnik")
+async def show_operatsion_items(message: Message):
+    if not await db.is_user_approved(message.from_user.id):
+        await message.answer("⛔️ Sizga ruxsat berilmagan!")
+        return
 
-async def render_medicines_page(message_or_query, medicines, page: int = 1):
+    items = await db.get_all_medicines(category="operatsion")
+    if not items:
+        await message.answer(
+            "🩺 Omborda operatsion rasxodniklar ro'yxati hozircha bo'sh.\n"
+            "Yangi qo'shish uchun <b>📥 Kirim qilish</b> tugmasini bosing.",
+            reply_markup=get_main_menu(),
+            parse_mode="HTML"
+        )
+        return
+
+    await render_medicines_page(message, items, page=1, category="operatsion", title="Operatsion rasxodniklar")
+
+@router.message(F.text == "🧹 Xo'jalik xarajatlari")
+async def show_xojalik_items(message: Message):
+    if not await db.is_user_approved(message.from_user.id):
+        await message.answer("⛔️ Sizga ruxsat berilmagan!")
+        return
+
+    items = await db.get_all_medicines(category="xojalik")
+    if not items:
+        await message.answer(
+            "🧹 Omborda xo'jalik mollari hozircha yo'q.\n"
+            "Yangi qo'shish uchun <b>📥 Kirim qilish</b> tugmasini bosing.",
+            reply_markup=get_main_menu(),
+            parse_mode="HTML"
+        )
+        return
+
+    await render_medicines_page(message, items, page=1, category="xojalik", title="Xo'jalik xarajatlari")
+
+async def render_medicines_page(message_or_query, medicines, page: int = 1, category: str = "dori", title: str = "Mahsulotlar"):
     total_items = len(medicines)
     total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
     if page < 1:
@@ -65,10 +100,13 @@ async def render_medicines_page(message_or_query, medicines, page: int = 1):
     end_idx = start_idx + ITEMS_PER_PAGE
     page_items = medicines[start_idx:end_idx]
 
+    icon_map = {"dori": "💊", "operatsion": "🩺", "xojalik": "🧹"}
+    base_icon = icon_map.get(category, "📦")
+
     buttons = []
     for med in page_items:
         is_low = med["quantity"] <= med["min_quantity"]
-        icon = "⚠️" if is_low else "💊"
+        icon = "⚠️" if is_low else base_icon
         buttons.append([
             InlineKeyboardButton(
                 text=f"{icon} {med['name']} — {med['quantity']:g} {med['unit']}",
@@ -79,18 +117,18 @@ async def render_medicines_page(message_or_query, medicines, page: int = 1):
     # Sahifalash tugmalari
     nav_buttons = []
     if page > 1:
-        nav_buttons.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"page:{page - 1}"))
+        nav_buttons.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"page:{category}:{page - 1}"))
     nav_buttons.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="noop"))
     if page < total_pages:
-        nav_buttons.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"page:{page + 1}"))
+        nav_buttons.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"page:{category}:{page + 1}"))
 
     if nav_buttons:
         buttons.append(nav_buttons)
 
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     text = (
-        f"📦 <b>Ombordagi dorilar ro'yxati (Jami: {total_items} xil):</b>\n"
-        f"<i>Batafsil ma'lumot va amallar uchun dorini bosing 👇</i>"
+        f"{base_icon} <b>{title} ro'yxati (Jami: {total_items} xil):</b>\n"
+        f"<i>Batafsil ma'lumot va amallar uchun mahsulotni bosing 👇</i>"
     )
 
     if isinstance(message_or_query, Message):
@@ -100,9 +138,17 @@ async def render_medicines_page(message_or_query, medicines, page: int = 1):
 
 @router.callback_query(F.data.startswith("page:"))
 async def pagination_callback(callback: CallbackQuery):
-    page = int(callback.data.split(":")[1])
-    medicines = await db.get_all_medicines()
-    await render_medicines_page(callback, medicines, page=page)
+    parts = callback.data.split(":")
+    if len(parts) == 3:
+        category = parts[1]
+        page = int(parts[2])
+    else:
+        category = "dori"
+        page = int(parts[1])
+
+    title_map = {"dori": "Dori-darmonlar", "operatsion": "Operatsion rasxodniklar", "xojalik": "Xo'jalik xarajatlari"}
+    medicines = await db.get_all_medicines(category=category)
+    await render_medicines_page(callback, medicines, page=page, category=category, title=title_map.get(category, "Mahsulotlar"))
     await callback.answer()
 
 @router.callback_query(F.data == "noop")
