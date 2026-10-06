@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Klinika Omborxonasi — Web Dashboard</title>
+    <!-- Telegram Web App JS SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1d4ed8;
+            --success: #15803d;
+            --danger: #b91c1c;
+            --warning: #b45309;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            padding-bottom: 70px;
+        }
+
+        /* Yuqori Header */
+        header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 14px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .header-title span {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border-color: var(--border);
+            color: var(--text-main);
+        }
+        .btn-secondary:hover {
+            background: #f1f5f9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* Statistika kartalari */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .stat-value.danger { color: var(--danger); }
+        .stat-value.primary { color: var(--primary); }
+        .stat-value.success { color: var(--success); }
+
+        /* Tablar */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Qidiruv va Filtr */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background: #ffffff;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        /* Jadval va Kartochkalar */
+        .table-responsive {
+            background: #ffffff;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f8fafc;
+        }
+
+        /* Badge status */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+        .badge-warning {
+            background: #fef3c7;
+            color: var(--warning);
+        }
+        .badge-success {
+            background: #dcfce7;
+            color: var(--success);
+        }
+
+        /* Form dizayni */
+        .card {
+            background: #ffffff;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background: #ffffff;
+            outline: none;
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #ffffff;
+            border-radius: 16px;
+            max-width: 480px;
+            width: 100%;
+            padding: 24px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .modal-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 200;
+        }
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        @media (max-width: 640px) {
+            header { padding: 10px 14px; }
+            .header-title h1 { font-size: 15px; }
+            .container { padding: 10px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .stat-value { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN MODALI (Faqat ruxsatli xodimlar uchun) -->
+    <div id="login-modal" class="modal active" style="z-index: 1000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div style="font-size: 44px; margin-bottom: 10px;">🔐</div>
+            <h3 style="margin-bottom: 8px; color: var(--primary);">Klinika Omborxonasiga Kirish</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                Tizimdan foydalanish uchun Bosh Admin tasdiqlagan login va parolingizni kiriting.
+            </p>
+            <form id="form-login" onsubmit="handleWebLogin(event)">
+                <div class="form-group" style="text-align: left;">
+                    <label>Telegram ID yoki Username *</label>
+                    <input type="text" id="login-user" class="form-control" placeholder="475334833 yoki username" required>
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>Parol / PIN-kod *</label>
+                    <input type="password" id="login-pass" class="form-control" placeholder="PIN-kodni kiriting" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 10px; font-size: 14px;">Tizimga kirish ➡️</button>
+            </form>
+            <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+                <i>Ruxsat (do'psuk) olish uchun Telegram botimizda <a href="https://t.me/Dorixonaombor_bot" target="_blank" style="color: var(--primary); font-weight: 600;">@Dorixonaombor_bot</a> /start bosing.</i>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASOSIY HEADER -->
+    <header>
+        <div class="header-title">
+            <h1>🏥 Klinika Omborxonasi</h1>
+            <span id="user-display">Yuklanmoqda...</span>
+        </div>
+        <div class="header-actions">
+            <a href="/api/export-excel" class="btn btn-secondary" title="Excel yuklab olish">📊 Excel</a>
+            <button class="btn btn-secondary" onclick="logout()" title="Tizimdan chiqish">🚪 Chiqish</button>
+            <button class="btn btn-primary" onclick="loadAllData()" title="Yangilash">🔄</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Statistika bloki -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Jami dori turlari</div>
+                <div class="stat-value primary" id="stat-total-items">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Umumiy qoldiq</div>
+                <div class="stat-value" id="stat-total-qty">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Kam qolganlar</div>
+                <div class="stat-value danger" id="stat-low-count">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Bugungi harakatlar</div>
+                <div class="stat-value success" id="stat-today-tx">0</div>
+            </div>
+        </div>
+
+        <!-- Tablar navigatsiyasi -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('medicines')">📦 Barcha dorilar</button>
+            <button class="tab-btn" onclick="switchTab('low-stock')">⚠️ Kam qolganlar</button>
+            <button class="tab-btn" onclick="switchTab('departments')">🏢 Bo'limlar sarfi</button>
+            <button class="tab-btn" onclick="switchTab('kirim')">📥 Kirim qilish</button>
+            <button class="tab-btn" onclick="switchTab('chiqim')">📤 Chiqim qilish</button>
+            <button class="tab-btn" onclick="switchTab('history')">📜 Harakatlar tarixi</button>
+        </div>
+
+        <!-- 1-TAB: BARCHA DORILAR -->
+        <div id="tab-medicines" class="tab-content active">
+            <div class="search-box">
+                <input type="text" id="search-input" class="search-input" placeholder="🔍 Dori nomini qidirish (masalan: novokain, analgin)..." oninput="filterMedicines()">
+                <button class="btn btn-primary" onclick="switchTab('kirim')">+ Yangi dori</button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Dori nomi</th>
+                            <th>Mavjud qoldiq</th>
+                            <th>Min. me'yor</th>
+                            <th>Joylashuv</th>
+                            <th>Holati</th>
+                            <th>Amallar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="medicines-table-body">
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Yuklanmoqda...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2-TAB: KAM QOLGAN DORILAR -->
+        <div id="tab-low-stock" class="tab-content">
+            <div style="margin-bottom: 12px; font-weight: 600; color: var(--danger);">
+                ⚠️ Minimal me'yordan kam qolgan yoki mutlaqo tugagan dorilar:
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dori nomi</th>
+                            <th>Qoldiq (Soni)</th>
+                            <th>Min. norma</th>
+                            <th>Yetishmaydi</th>
+                            <th>Holati</th>
+                            <th>Kirim qilish</th>
+                        </tr>
+                    </thead>
+                    <tbody id="low-stock-table-body">
+                        <tr><td colspan="6" style="text-align: center;">Yuklanmoqda...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3-TAB: BO'LIMLAR SARFI -->
+        <div id="tab-departments" class="tab-content">
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--primary);">🏢 Bo'limlar kesimida dori sarfi hisoboti</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>Bo'lim nomi</th>
+                                <th>Chiqimlar soni</th>
+                                <th>Jami olingan miqdor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="departments-table-body">
+                            <tr><td colspan="4" style="text-align: center;">Yuklanmoqda...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4-TAB: KIRIM QILISH FORMASI -->
+        <div id="tab-kirim" class="tab-content">
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 16px; color: var(--primary);">📥 Omborga dori qabul qilish (Kirim)</h3>
+                <form id="form-kirim" onsubmit="handleKirimSubmit(event)">
+                    <div class="form-group">
+                        <label>Dori nomi *</label>
+                        <input type="text" id="k-name" class="form-control" placeholder="Masalan: Paratsetamol 500mg" required list="medicine-datalist">
+                        <datalist id="medicine-datalist"></datalist>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>O'lchov birligi</label>
+                            <select id="k-unit" class="form-control">
+                                <option value="dona">dona</option>
+                                <option value="ampula">ampula</option>
+                                <option value="flakon">flakon</option>
+                                <option value="quti">quti</option>
+                                <option value="tabletka">tabletka</option>
+                                <option value="kapsula">kapsula</option>
+                                <option value="pachka">pachka</option>
+                                <option value="juft">juft</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Kirim miqdori (Soni) *</label>
+                            <input type="number" step="any" min="0.1" id="k-qty" class="form-control" placeholder="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Minimal norma (ogohlantirish uchun)</label>
+                            <input type="number" step="any" min="0" id="k-min-qty" class="form-control" value="10">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Joylashuvi (shkaf/polka)</label>
+                            <input type="text" id="k-loc" class="form-control" placeholder="1-shkaf, 2-polka">
+                        </div>
+                        <div class="form-group">
+                            <label>Yetkazib beruvchi / Izoh</label>
+                            <input type="text" id="k-comment" class="form-control" placeholder="Farmstandart MChJ / Yangi partiya">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-size: 15px;">✅ Kirimni tasdiqlash</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 5-TAB: CHIQIM QILISH FORMASI -->
+        <div id="tab-chiqim" class="tab-content">
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 16px; color: var(--danger);">📤 Bo'limlarga dori berish (Chiqim)</h3>
+                <form id="form-chiqim" onsubmit="handleChiqimSubmit(event)">
+                    <div class="form-group">
+                        <label>Chiqim qilinadigan dorini tanlang *</label>
+                        <select id="c-med-id" class="form-control" required onchange="onChiqimMedChange()">
+                            <option value="">-- Dorini tanlang --</option>
+                        </select>
+                        <div id="c-stock-info" style="font-size: 12px; margin-top: 4px; color: var(--text-muted);"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Chiqim miqdori (Soni) *</label>
+                            <input type="number" step="any" min="0.1" id="c-qty" class="form-control" placeholder="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Qaysi bo'limga berilmoqda? *</label>
+                            <select id="c-dept" class="form-control" required>
+                                <option value="Xudud bo'limi">🏘 Xudud bo'limi</option>
+                                <option value="LOR bo'limi">👂 LOR bo'limi</option>
+                                <option value="Ortopediya bo'limi">🦴 Ortopediya bo'limi</option>
+                                <option value="Muolajaxonasi">💉 Muolajaxonasi</option>
+                                <option value="Laboratoriya">🔬 Laboratoriya</option>
+                                <option value="Operatsion bo'lim">🔪 Operatsion bo'lim</option>
+                                <option value="Boshqa">✍️ Boshqa bo'lim</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Qabul qiluvchi xodim / Shifokor F.I.Sh / Izoh</label>
+                        <input type="text" id="c-comment" class="form-control" placeholder="Hamshira Dilnoza / Operatsiya uchun">
+                    </div>
+                    <button type="submit" class="btn btn-danger" style="width: 100%; padding: 12px; font-size: 15px;">📤 Chiqimni tasdiqlash</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 6-TAB: HARAKATLAR TARIXI -->
+        <div id="tab-history" class="tab-content">
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 12px;">📜 So'nggi kirim va chiqimlar jurnali</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sana</th>
+                                <th>Turi</th>
+                                <th>Dori nomi</th>
+                                <th>Miqdori</th>
+                                <th>Bo'lim</th>
+                                <th>Izoh</th>
+                                <th>Mas'ul</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr><td colspan="7" style="text-align: center;">Yuklanmoqda...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Xabar</div>
+
+    <script>
+        let allMedicines = [];
+        let currentUser = null;
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.style.background = isError ? '#b91c1c' : '#1e293b';
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Tizimga kirishni tekshirish
+        function checkAuth() {
+            const saved = localStorage.getItem('ombor_user');
+            if (saved) {
+                try {
+                    currentUser = JSON.parse(saved);
+                    document.getElementById('user-display').innerText = currentUser.full_name + (currentUser.role === 'admin' ? ' (Admin)' : '');
+                    document.getElementById('login-modal').classList.remove('active');
+                    loadAllData();
+                    return;
+                } catch(e) {}
+            }
+            // Agar kirmagan bo'lsa modal ochiq qoladi
+            document.getElementById('login-modal').classList.add('active');
+        }
+
+        async function handleWebLogin(e) {
+            e.preventDefault();
+            const login = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({login: login, password: pass})
+                });
+                const data = await res.json();
+                if (data.success && data.user) {
+                    currentUser = data.user;
+                    localStorage.setItem('ombor_user', JSON.stringify(currentUser));
+                    document.getElementById('user-display').innerText = currentUser.full_name + (currentUser.role === 'admin' ? ' (Admin)' : '');
+                    document.getElementById('login-modal').classList.remove('active');
+                    showToast("✅ Xush kelibsiz, " + currentUser.full_name + "!");
+                    loadAllData();
+                } else {
+                    alert("❌ " + (data.message || "Login yoki parol noto'g'ri!"));
+                }
+            } catch(err) {
+                alert("Server bilan ulanishda xatolik!");
+            }
+        }
+
+        function logout() {
+            if (confirm("Haqiqatan ham tizimdan chiqmoqchimisiz?")) {
+                localStorage.removeItem('ombor_user');
+                currentUser = null;
+                document.getElementById('login-modal').classList.add('active');
+                document.getElementById('user-display').innerText = "Kutilmoqda...";
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+            if (targetBtn) targetBtn.classList.add('active');
+
+            const targetContent = document.getElementById(`tab-${tabId}`);
+            if (targetContent) targetContent.classList.add('active');
+        }
+
+        async function loadAllData() {
+            try {
+                // 1. Dorilarni yuklash
+                const resMed = await fetch('/api/medicines');
+                allMedicines = await resMed.json();
+                renderMedicinesTable(allMedicines);
+                renderLowStockTable(allMedicines);
+                populateDatalistAndSelect(allMedicines);
+
+                // 2. Statistika
+                const resStats = await fetch('/api/stats');
+                const stats = await resStats.json();
+                document.getElementById('stat-total-items').innerText = stats.total_items + ' xil';
+                document.getElementById('stat-total-qty').innerText = stats.total_qty.toLocaleString() + ' ta';
+                document.getElementById('stat-low-count').innerText = stats.low_count + ' xil';
+                document.getElementById('stat-today-tx').innerText = (stats.today_kirim + stats.today_chiqim) + ' marta';
+
+                // 3. Bo'limlar statistikasi
+                renderDepartmentsTable(stats.departments || []);
+
+                // 4. Tarix
+                const resHistory = await fetch('/api/transactions?limit=100');
+                const history = await resHistory.json();
+                renderHistoryTable(history);
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderMedicinesTable(medicines) {
+            const tbody = document.getElementById('medicines-table-body');
+            tbody.innerHTML = '';
+            if (!medicines.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Dorilar topilmadi.</td></tr>';
+                return;
+            }
+
+            medicines.forEach((m, idx) => {
+                const isZero = m.quantity <= 0;
+                const isLow = m.quantity <= m.min_quantity;
+                let badge = '<span class="badge badge-success">Yetarli</span>';
+                if (isZero) badge = '<span class="badge badge-danger">Tugagan (0)</span>';
+                else if (isLow) badge = '<span class="badge badge-warning">Kam qolgan</span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td><strong>${escapeHtml(m.name)}</strong></td>
+                    <td style="font-weight: 700; color: ${isLow ? 'var(--danger)' : 'var(--text-main)'};">
+                        ${m.quantity} ${m.unit}
+                    </td>
+                    <td>${m.min_quantity} ${m.unit}</td>
+                    <td>${m.location || '-'}</td>
+                    <td>${badge}</td>
+                    <td>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openQuickKirim(${m.id})">📥 Kirim</button>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openQuickChiqim(${m.id})">📤 Chiqim</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderLowStockTable(medicines) {
+            const lowItems = medicines.filter(m => m.quantity <= m.min_quantity);
+            const tbody = document.getElementById('low-stock-table-body');
+            tbody.innerHTML = '';
+
+            if (!lowItems.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--success); font-weight: 600;">🎉 Barcha dorilar yetarli miqdorda!</td></tr>';
+                return;
+            }
+
+            lowItems.forEach(m => {
+                const isZero = m.quantity <= 0;
+                const def = Math.max(0, m.min_quantity - m.quantity);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(m.name)}</strong></td>
+                    <td style="font-weight: 700; color: var(--danger);">${m.quantity} ${m.unit}</td>
+                    <td>${m.min_quantity} ${m.unit}</td>
+                    <td style="color: var(--danger); font-weight: 600;">kamida ${def} ${m.unit}</td>
+                    <td><span class="badge ${isZero ? 'badge-danger' : 'badge-warning'}">${isZero ? 'Tugagan' : 'Kam qolgan'}</span></td>
+                    <td>
+                        <button class="btn btn-success" style="padding: 4px 10px; font-size: 12px;" onclick="openQuickKirim(${m.id})">+ Kirim qilish</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderDepartmentsTable(depts) {
+            const tbody = document.getElementById('departments-table-body');
+            tbody.innerHTML = '';
+            if (!depts.length) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Hozircha chiqim qilinmagan.</td></tr>';
+                return;
+            }
+
+            depts.forEach((d, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td><strong>${escapeHtml(d.department)}</strong></td>
+                    <td>${d.tx_count} marta</td>
+                    <td style="font-weight: 700; color: var(--primary);">${d.total_qty} ta</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderHistoryTable(history) {
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = '';
+            if (!history.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Tarix mavjud emas.</td></tr>';
+                return;
+            }
+
+            history.forEach(h => {
+                const isKirim = h.type === 'kirim';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-size: 11px; color: var(--text-muted);">${h.created_at}</td>
+                    <td><span class="badge ${isKirim ? 'badge-success' : 'badge-danger'}">${isKirim ? '📥 Kirim' : '📤 Chiqim'}</span></td>
+                    <td><strong>${escapeHtml(h.medicine_name)}</strong></td>
+                    <td style="font-weight: 600;">${h.quantity} ${h.medicine_unit}</td>
+                    <td>${h.department || '-'}</td>
+                    <td>${h.comment || '-'}</td>
+                    <td style="font-size: 12px;">${h.user_name || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populateDatalistAndSelect(medicines) {
+            const datalist = document.getElementById('medicine-datalist');
+            datalist.innerHTML = '';
+            const selectChiqim = document.getElementById('c-med-id');
+            selectChiqim.innerHTML = '<option value="">-- Dorini tanlang --</option>';
+
+            medicines.forEach(m => {
+                const opt1 = document.createElement('option');
+                opt1.value = m.name;
+                datalist.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = m.id;
+                opt2.text = `${m.name} (Qoldiq: ${m.quantity} ${m.unit})`;
+                selectChiqim.appendChild(opt2);
+            });
+        }
+
+        function onChiqimMedChange() {
+            const medId = parseInt(document.getElementById('c-med-id').value);
+            const med = allMedicines.find(m => m.id === medId);
+            const info = document.getElementById('c-stock-info');
+            if (med) {
+                info.innerHTML = `Mavjud qoldiq: <strong>${med.quantity} ${med.unit}</strong> | Min. norma: ${med.min_quantity} ${med.unit}`;
+                document.getElementById('c-qty').max = med.quantity;
+            } else {
+                info.innerText = '';
+            }
+        }
+
+        function filterMedicines() {
+            const q = document.getElementById('search-input').value.toLowerCase().trim();
+            if (!q) {
+                renderMedicinesTable(allMedicines);
+                return;
+            }
+            const filtered = allMedicines.filter(m => m.name.toLowerCase().includes(q));
+            renderMedicinesTable(filtered);
+        }
+
+        async function handleKirimSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('k-name').value.trim();
+            const unit = document.getElementById('k-unit').value;
+            const qty = parseFloat(document.getElementById('k-qty').value);
+            const minQty = parseFloat(document.getElementById('k-min-qty').value) || 10;
+            const loc = document.getElementById('k-loc').value.trim();
+            const comment = document.getElementById('k-comment').value.trim();
+
+            const userName = currentUser ? currentUser.full_name : 'Web xodim';
+
+            try {
+                const res = await fetch('/api/kirim', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        unit: unit,
+                        quantity: qty,
+                        min_quantity: minQty,
+                        location: loc,
+                        comment: comment,
+                        user_name: userName
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("✅ Kirim muvaffaqiyatli saqlandi!");
+                    document.getElementById('form-kirim').reset();
+                    loadAllData();
+                    switchTab('medicines');
+                } else {
+                    showToast("Xatolik: " + data.message, true);
+                }
+            } catch (err) {
+                showToast("Server bilan ulanishda xatolik!", true);
+            }
+        }
+
+        async function handleChiqimSubmit(e) {
+            e.preventDefault();
+            const medId = parseInt(document.getElementById('c-med-id').value);
+            const qty = parseFloat(document.getElementById('c-qty').value);
+            const dept = document.getElementById('c-dept').value;
+            const comment = document.getElementById('c-comment').value.trim();
+            const userName = currentUser ? currentUser.full_name : 'Web xodim';
+
+            if (!medId) {
+                showToast("Iltimos, dorini tanlang!", true);
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/chiqim', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        medicine_id: medId,
+                        quantity: qty,
+                        department: dept,
+                        comment: comment,
+                        user_name: userName
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.is_low) {
+                        alert(`🚨 DIQQAT! Dori minimal normadan kam qoldi! Yangi qoldiq: ${data.new_quantity}`);
+                    }
+                    showToast("✅ Chiqim muvaffaqiyatli amalga oshirildi!");
+                    document.getElementById('form-chiqim').reset();
+                    document.getElementById('c-stock-info').innerText = '';
+                    loadAllData();
+                    switchTab('medicines');
+                } else {
+                    showToast("Xatolik: " + data.message, true);
+                }
+            } catch (err) {
+                showToast("Server bilan ulanishda xatolik!", true);
+            }
+        }
+
+        function openQuickKirim(medId) {
+            const med = allMedicines.find(m => m.id === medId);
+            if (!med) return;
+            switchTab('kirim');
+            document.getElementById('k-name').value = med.name;
+            document.getElementById('k-unit').value = med.unit;
+            document.getElementById('k-min-qty').value = med.min_quantity;
+            document.getElementById('k-loc').value = med.location || '';
+            document.getElementById('k-qty').focus();
+        }
+
+        function openQuickChiqim(medId) {
+            const med = allMedicines.find(m => m.id === medId);
+            if (!med) return;
+            switchTab('chiqim');
+            document.getElementById('c-med-id').value = med.id;
+            onChiqimMedChange();
+            document.getElementById('c-qty').focus();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Boshlanishida tizimga kirishni tekshirish
+        checkAuth();
+    </script>
+</body>
+</html>

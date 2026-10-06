@@ -1,0 +1,27 @@
+# Maxfiy tokenlar va sozlamalar
+.env
+
+# Ma'lumotlar bazasi
+*.db
+*.sqlite
+*.sqlite3
+
+# Python vaqtinchalik fayllari
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual muhit
+venv/
+.venv/
+env/
+
+# Excel hisobot fayllari
+*.xlsx
+
+# Muhit va IDE sozlamalari
+.idea/
+.vscode/
+*.swp
+*.log
