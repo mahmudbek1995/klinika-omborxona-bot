@@ -18,6 +18,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+async def run_bot_polling(dp: Dispatcher, bot: Bot):
+    """Tarmoq xatolariga chidamli (avtomatik qayta ulanuvchi) bot polling"""
+    while True:
+        try:
+            logger.info("Telegram Bot polling ishga tushmoqda...")
+            await dp.start_polling(bot, handle_signals=False)
+            break
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            logger.info("Bot to'xtatildi.")
+            break
+        except Exception as e:
+            logger.warning(f"Telegram tarmoq uzilishi ({type(e).__name__}): {e}. 3 soniyadan so'ng qayta ulanadi...")
+            await asyncio.sleep(3)
+
 async def main():
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         logger.error(
@@ -38,7 +52,6 @@ async def main():
     set_bot_instance(bot)
     dp = Dispatcher(storage=MemoryStorage())
 
-
     # Routerlarni ulash
     dp.include_router(start.router)
     dp.include_router(kirim.router)
@@ -47,9 +60,11 @@ async def main():
     dp.include_router(kam_qolgan.router)
     dp.include_router(hisobot.router)
 
-    # Eski kutilayotgan yangilanishlarni tozalash
-    await bot.delete_webhook(drop_pending_updates=True)
-    logger.info("Telegram Bot muvaffaqiyatli ishga tushdi...")
+    # Eski kutilayotgan yangilanishlarni tozalash (xavfsiz rejimda)
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except Exception as e:
+        logger.warning(f"delete_webhook xatosi (davom etiladi): {e}")
 
     # Uvicorn Web Server konfiguratsiyasi
     uvicorn_config = uvicorn.Config(
@@ -62,9 +77,8 @@ async def main():
     logger.info(f"🌐 Web Dashboard va API server ishga tushdi: http://localhost:{WEB_PORT}")
 
     try:
-        # Bot va Web serverni parallel ishga tushirish
         await asyncio.gather(
-            dp.start_polling(bot),
+            run_bot_polling(dp, bot),
             server.serve()
         )
     finally:
