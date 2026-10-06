@@ -79,12 +79,73 @@ async def init_db():
         # Agar dorilar bazasi bo'sh bo'lsa va initial_medicines.xlsx mavjud bo'lsa, avtomatik to'ldirish
         async with db.execute("SELECT COUNT(*) FROM medicines") as cursor:
             count = (await cursor.fetchone())[0]
-            if count == 0:
+            
+        if count == 0:
+            import os
+            excel_path = os.path.join(os.path.dirname(__file__), "initial_medicines.xlsx")
+            if os.path.exists(excel_path):
+                import openpyxl
                 try:
-                    import import_excel
-                    await import_excel.import_medicines()
-                except Exception as e:
-                    pass
+                    wb = openpyxl.load_workbook(excel_path)
+                    ws = wb.active
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    def _determine_unit(name: str) -> str:
+                        n = name.lower()
+                        if "амп" in n: return "ampula"
+                        elif "таб" in n: return "tabletka"
+                        elif "флакон" in n or "сусп" in n or "капли" in n: return "flakon"
+                        elif "кап" in n: return "kapsula"
+                        elif "светча" in n or "свитча" in n: return "shamcha"
+                        elif "маз" in n: return "tubik"
+                        elif "шприц" in n: return "dona"
+                        elif "перчатк" in n: return "juft"
+                        elif "пачк" in n: return "pachka"
+                        return "dona"
+
+                    def _determine_min_qty(qty: float) -> float:
+                        if qty >= 500: return 50
+                        elif qty >= 100: return 20
+                        elif qty >= 20: return 10
+                        return 3
+
+                    for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                        if row_idx == 1 or not row[0]: continue
+                        raw_name = " ".join(str(row[0]).split()).strip()
+                        raw_qty = row[1]
+                        qty = 0.0
+                        if raw_qty is not None and str(raw_qty).strip():
+                            try:
+                                qty = float(str(raw_qty).replace(",", ".").strip())
+                            except ValueError:
+                                qty = 0.0
+                        
+                        unit = _determine_unit(raw_name)
+                        min_qty = _determine_min_qty(qty)
+                        
+                        cursor_med = await db.execute(
+                            """
+                            INSERT OR IGNORE INTO medicines (name, unit, quantity, min_quantity, location, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, 'Asosiy omborxona', ?, ?)
+                            """,
+                            (raw_name, unit, qty, min_qty, now, now)
+                        )
+                        med_id = cursor_med.lastrowid
+                        if not med_id:
+                            cur2 = await db.execute("SELECT id FROM medicines WHERE name = ?", (raw_name,))
+                            row2 = await cur2.fetchone()
+                            med_id = row2[0] if row2 else None
+                            
+                        if med_id and qty > 0:
+                            await db.execute(
+                                """
+                                INSERT INTO transactions (medicine_id, type, quantity, comment, user_id, user_name, created_at)
+                                VALUES (?, 'kirim', ?, ?, ?, ?, ?)
+                                """,
+                                (med_id, qty, "2026-yil oktyabr boshlang'ich qoldig'i (Excel)", 475334833, "Ombor mudiri", now)
+                            )
+                except Exception as ex:
+                    print(f"Excel import xatosi: {ex}")
 
         await db.commit()
 
