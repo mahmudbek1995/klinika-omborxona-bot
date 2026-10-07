@@ -18,6 +18,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+async def keep_alive_ping():
+    """Render bepul serveri uxlab qolmasligi uchun har 10 daqiqada o'zini o'zi chaqirib turish"""
+    await asyncio.sleep(60)  # Dastlabki yuklanishdan so'ng 1 daqiqa kutish
+    import aiohttp
+    url = f"{WEB_APP_URL.rstrip('/')}/api/stats" if WEB_APP_URL.startswith("http") else None
+    if not url:
+        return
+        
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    logger.debug(f"Keep-alive self-ping yuborildi: {resp.status}")
+        except Exception as e:
+            logger.debug(f"Keep-alive ping xatosi (muhim emas): {e}")
+        await asyncio.sleep(600)  # Har 10 daqiqada (Render 15 daqiqada uxlaydi)
+
 async def run_bot_polling(dp: Dispatcher, bot: Bot):
     """Tarmoq xatolariga chidamli (avtomatik qayta ulanuvchi) bot polling"""
     while True:
@@ -79,7 +96,8 @@ async def main():
     try:
         await asyncio.gather(
             run_bot_polling(dp, bot),
-            server.serve()
+            server.serve(),
+            keep_alive_ping()
         )
     finally:
         await bot.session.close()
